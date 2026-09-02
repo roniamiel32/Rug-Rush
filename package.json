@@ -1,0 +1,12 @@
+{
+  "name": "rug-rush",
+  "version": "0.2.0",
+  "description": "A 2D web casual game: clean the dog hair off the rug before Shiki jumps on it.",
+  "author": "Sagi",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "test": "node tests/test-logic.js"
+  }
+}

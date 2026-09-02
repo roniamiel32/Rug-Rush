@@ -1,0 +1,30 @@
+<!--
+  File:        index.html
+  Author:      Sagi
+  Description: Entry point for Rug Rush. Hosts the full-screen game canvas.
+  Version:     0.2.0
+
+  Modifications:
+      0.1.0 - 2026-09-01 - Initial scaffold
+      0.2.0 - 2026-09-01 - Added game canvas, stylesheet link, no-JS fallback
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="description" content="Rug Rush - clean the dog hair off the rug before Shiki jumps on it.">
+    <meta name="theme-color" content="#f3e3cf">
+    <title>Rug Rush</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <canvas id="game-canvas" aria-label="Rug Rush game board" role="img"></canvas>
+
+    <noscript>
+        <p class="noscript-message">Rug Rush needs JavaScript enabled to run.</p>
+    </noscript>
+
+    <script src="main.js"></script>
+</body>
+</html>

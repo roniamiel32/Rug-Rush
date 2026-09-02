@@ -1,0 +1,81 @@
+/*
+ * File:        style.css
+ * Author:      Sagi
+ * Description: Page reset and layout for the full-screen Rug Rush canvas.
+ * Version:     0.2.1
+ *
+ * Modifications:
+ *     0.2.0 - 2026-09-01 - Initial stylesheet: reset, centering, cozy backdrop
+ *     0.2.1 - 2026-09-01 - Integrated custom cozy color palette and fonts
+ */
+
+/* ------------------------------------------------------------------
+ * Reset
+ * ------------------------------------------------------------------ */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html,
+body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+}
+
+/* ------------------------------------------------------------------
+ * Page shell - cozy living-room backdrop behind the canvas
+ * ------------------------------------------------------------------ */
+body {
+    --color-primary: #E2725B;
+    --color-secondary: #5BA8E2;
+    --color-tertiary: #8B5E3C;
+    --color-neutral: #F9F5F0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background-color: var(--color-neutral);
+    background-image: radial-gradient(circle at 50% 35%, #ffffff 0%, var(--color-neutral) 55%, #eddcca 100%);
+    font-family: "Be Vietnam Pro", "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+    color: var(--color-tertiary);
+
+    /* Keep drags on the canvas from scrolling or selecting the page. */
+    overscroll-behavior: none;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* ------------------------------------------------------------------
+ * Canvas
+ * ------------------------------------------------------------------ */
+#game-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+
+    /* The game draws its own cursor (the tool's cleaning radius). */
+    cursor: none;
+    touch-action: none;
+}
+
+/* ------------------------------------------------------------------
+ * No-JS fallback
+ * ------------------------------------------------------------------ */
+.noscript-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 16px 24px;
+    border-radius: 12px;
+    background-color: var(--color-neutral);
+    box-shadow: 0 6px 20px rgba(139, 94, 60, 0.18);
+    font-size: 16px;
+    color: var(--color-tertiary);
+}
