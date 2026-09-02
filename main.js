@@ -1692,7 +1692,7 @@ class Renderer {
     ctx.fill();
 
     ctx.fillStyle = PALETTE.onPrimary;
-    ctx.font = font(600, 15);
+    ctx.font = font(500, 15);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('CLEAN AGAIN', button.x + button.w / 2, button.y + button.h / 2);
