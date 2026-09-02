@@ -516,7 +516,7 @@ const PALETTE = Object.freeze({
  */
 const FONTS = Object.freeze({
   heading: '"Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif',
-  body: '"Be Vietnam Pro", "Segoe UI", system-ui, sans-serif',
+  body: '"Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif',
 });
 
 /**
@@ -833,41 +833,41 @@ class Renderer {
    *
    * @returns {void}
    */
-drawBackground() {
-  const ctx = this.ctx;
+  drawBackground() {
+    const ctx = this.ctx;
 
-  ctx.fillStyle = PALETTE.background;
-  ctx.fillRect(0, 0, this.width, this.height);
+    ctx.fillStyle = PALETTE.background;
+    ctx.fillRect(0, 0, this.width, this.height);
 
-  if (
-    !this.floorImage.complete ||
-    this.floorImage.naturalWidth === 0
-  ) {
-    return;
+    if (
+      !this.floorImage.complete ||
+      this.floorImage.naturalWidth === 0
+    ) {
+      return;
+    }
+
+    const imageWidth = this.floorImage.naturalWidth;
+    const imageHeight = this.floorImage.naturalHeight;
+
+    const scale = Math.max(
+      this.width / imageWidth,
+      this.height / imageHeight
+    );
+
+    const drawWidth = imageWidth * scale;
+    const drawHeight = imageHeight * scale;
+
+    const x = (this.width - drawWidth) / 2;
+    const y = (this.height - drawHeight) / 2;
+
+    ctx.drawImage(
+      this.floorImage,
+      x,
+      y,
+      drawWidth,
+      drawHeight
+    );
   }
-
-  const imageWidth = this.floorImage.naturalWidth;
-  const imageHeight = this.floorImage.naturalHeight;
-
-  const scale = Math.max(
-    this.width / imageWidth,
-    this.height / imageHeight
-  );
-
-  const drawWidth = imageWidth * scale;
-  const drawHeight = imageHeight * scale;
-
-  const x = (this.width - drawWidth) / 2;
-  const y = (this.height - drawHeight) / 2;
-
-  ctx.drawImage(
-    this.floorImage,
-    x,
-    y,
-    drawWidth,
-    drawHeight
-  );
-}
 
   /**
    * Draws the rug the player has to clean.
