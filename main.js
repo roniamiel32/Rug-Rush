@@ -793,6 +793,18 @@ class Renderer {
     this.ctx = canvas.getContext('2d');
     this.width = 0;
     this.height = 0;
+
+    this.floorImage = new Image();
+
+    this.floorImage.onload = () => {
+      console.log('Floor image loaded successfully');
+    };
+
+    this.floorImage.onerror = () => {
+      console.error('Could not load floor image:', this.floorImage.src);
+    };
+
+    this.floorImage.src = 'assets/images/floor-bg.png';
   }
 
   /**
@@ -821,28 +833,41 @@ class Renderer {
    *
    * @returns {void}
    */
-  drawBackground() {
-    const ctx = this.ctx;
+drawBackground() {
+  const ctx = this.ctx;
 
-    const gradient = ctx.createLinearGradient(0, 0, 0, this.height);
-    gradient.addColorStop(0, PALETTE.woodLight);
-    gradient.addColorStop(1, PALETTE.woodDark);
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, this.width, this.height);
+  ctx.fillStyle = PALETTE.background;
+  ctx.fillRect(0, 0, this.width, this.height);
 
-    // Diagonal grain, matching the wood texture in the design concept.
-    ctx.save();
-    ctx.globalAlpha = 0.06;
-    ctx.strokeStyle = '#000000';
-    ctx.lineWidth = 10;
-    for (let x = -this.height; x < this.width + this.height; x += 20) {
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x + this.height, this.height);
-      ctx.stroke();
-    }
-    ctx.restore();
+  if (
+    !this.floorImage.complete ||
+    this.floorImage.naturalWidth === 0
+  ) {
+    return;
   }
+
+  const imageWidth = this.floorImage.naturalWidth;
+  const imageHeight = this.floorImage.naturalHeight;
+
+  const scale = Math.max(
+    this.width / imageWidth,
+    this.height / imageHeight
+  );
+
+  const drawWidth = imageWidth * scale;
+  const drawHeight = imageHeight * scale;
+
+  const x = (this.width - drawWidth) / 2;
+  const y = (this.height - drawHeight) / 2;
+
+  ctx.drawImage(
+    this.floorImage,
+    x,
+    y,
+    drawWidth,
+    drawHeight
+  );
+}
 
   /**
    * Draws the rug the player has to clean.
