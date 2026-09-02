@@ -514,8 +514,8 @@ const PALETTE = Object.freeze({
  * Be Vietnam Pro for body copy, matching the Stitch type ramp.
  */
 const FONTS = Object.freeze({
-  heading: '"Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif',
-  body: '"Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif',
+  heading: '"Fredoka", "Arial Rounded MT Bold", system-ui, sans-serif',
+  body: '"Fredoka", "Arial Rounded MT Bold", system-ui, sans-serif',
 });
 
 /**
@@ -1150,7 +1150,7 @@ class Renderer {
 
     if (dog.isShaking) {
       const text = 'Shaking!';
-      ctx.font = font(800, 15);
+      ctx.font = font(600, 15);
       const w = ctx.measureText(text).width + 22;
 
       ctx.fillStyle = PALETTE.primary;
@@ -1162,7 +1162,7 @@ class Renderer {
       return;
     }
 
-    ctx.font = font(700, 13);
+    ctx.font = font(500, 13);
     ctx.fillStyle = PALETTE.surfaceBright;
     const label = dog.state;
     const width = ctx.measureText(label).width + 20;
@@ -1217,23 +1217,23 @@ class Renderer {
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
 
-    ctx.font = font(700, 11, FONTS.body);
+    ctx.font = font(500, 11, FONTS.body);
     ctx.fillStyle = PALETTE.onSurfaceVariant;
     ctx.fillText('CLEAN', textX, centerY - 6);
 
-    ctx.font = font(800, 30);
+    ctx.font = font(600, 30);
     ctx.fillStyle = PALETTE.primary;
     const percentText = `${Math.round(stats.cleanedPercent)}`;
     ctx.fillText(percentText, textX, centerY + 22);
 
     const percentWidth = ctx.measureText(percentText).width;
-    ctx.font = font(500, 15, FONTS.body);
+    ctx.font = font(400, 15, FONTS.body);
     ctx.fillText('%', textX + percentWidth + 3, centerY + 22);
 
     // Temptation meter.
     const meterW = isNarrow ? Math.max(110, this.width * 0.34) : 210;
     const meterX = this.width - meterW - 20;
-    this.drawTemptationMeter(stats.dog, meterX, centerY - 6, meterW);
+    this.drawTemptationMeter(stats.dog, meterX, centerY - 10, meterW);
   }
 
   /**
@@ -1250,51 +1250,92 @@ class Renderer {
     const h = 14;
     const ratio = clamp(dog.getTemptationRatio(), 0, 1);
 
-    ctx.font = font(700, 11, FONTS.body);
+    ctx.font = font(500, 11);
     ctx.textBaseline = 'alphabetic';
+
     ctx.fillStyle = PALETTE.onSurfaceVariant;
     ctx.textAlign = 'left';
-    ctx.fillText('SHIKI', x, y - 6);
-    ctx.textAlign = 'right';
-    ctx.fillText(dog.state.toUpperCase(), x + w, y - 6);
+    ctx.fillText('SHIKI', x, y - 8);
 
-    ctx.fillStyle = PALETTE.surfaceVariant;
+    ctx.textAlign = 'right';
+    ctx.fillText(dog.state.toUpperCase(), x + w, y - 8);
+
+    // Track
+    ctx.fillStyle = '#ebe6df';
     pathRoundRect(ctx, x, y, w, h, h / 2);
     ctx.fill();
 
+    // Colored meter
     if (ratio > 0) {
       const gradient = ctx.createLinearGradient(x, 0, x + w, 0);
-      gradient.addColorStop(0, PALETTE.primary);
-      gradient.addColorStop(1, PALETTE.inversePrimary);
+
+      gradient.addColorStop(0, '#6da36f');    // green
+      gradient.addColorStop(0.38, '#a6b76a');
+      gradient.addColorStop(0.62, '#e0b04e'); // yellow
+      gradient.addColorStop(0.82, '#df7d3f'); // orange
+      gradient.addColorStop(1, '#c84c35');    // red
 
       ctx.save();
+
       pathRoundRect(ctx, x, y, w, h, h / 2);
       ctx.clip();
+
       ctx.fillStyle = gradient;
       ctx.fillRect(x, y, w * ratio, h);
-      ctx.restore();
 
-      // Knob at the head of the fill.
-      const knobX = clamp(x + w * ratio, x + 8, x + w - 8);
-      ctx.fillStyle = PALETTE.onPrimary;
-      ctx.strokeStyle = PALETTE.surfaceVariant;
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.arc(knobX, y + h / 2, 8, 0, TAU);
-      ctx.fill();
-      ctx.stroke();
+      ctx.restore();
     }
 
-    // Tick at the Approaching threshold, and at the shake threshold.
-    ctx.strokeStyle = 'rgba(86, 66, 62, 0.35)';
-    ctx.lineWidth = 2;
-    [Dog.THRESHOLDS.APPROACHING, Dog.SHAKE.threshold].forEach((value) => {
-      const tickX = x + w * (value / Dog.THRESHOLDS.SITTING);
+    // Small state markers
+    const approachingX =
+      x + w * (Dog.THRESHOLDS.APPROACHING / Dog.THRESHOLDS.SITTING);
+
+    const shakeX =
+      x + w * (Dog.SHAKE.threshold / Dog.THRESHOLDS.SITTING);
+
+    ctx.strokeStyle = 'rgba(86, 66, 62, 0.25)';
+    ctx.lineWidth = 1.5;
+
+    [approachingX, shakeX].forEach((tickX) => {
       ctx.beginPath();
       ctx.moveTo(tickX, y + 2);
       ctx.lineTo(tickX, y + h - 2);
       ctx.stroke();
     });
+
+    // White knob
+    const knobX = clamp(
+      x + w * ratio,
+      x + 7,
+      x + w - 7
+    );
+
+    ctx.fillStyle = '#fffaf5';
+    ctx.strokeStyle = 'rgba(86, 66, 62, 0.18)';
+    ctx.lineWidth = 1.5;
+
+    ctx.beginPath();
+    ctx.arc(knobX, y + h / 2, 8, 0, TAU);
+    ctx.fill();
+    ctx.stroke();
+    // Labels under the meter
+    ctx.font = font(500, 9);
+    ctx.textBaseline = 'top';
+
+    // CALM
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#6da36f';
+    ctx.fillText('CALM', x, y + h + 6);
+
+    // WATCHING
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#9a7445';
+    ctx.fillText('WATCHING', x + w / 2, y + h + 6);
+
+    // OH NO
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#c84c35';
+    ctx.fillText('OH NO', x + w, y + h + 6);
   }
 
   /**
@@ -1305,78 +1346,78 @@ class Renderer {
    * @returns {void}
    */
   drawToolDock(dock, currentTool) {
-  const ctx = this.ctx;
+    const ctx = this.ctx;
 
-  // Main container
-  ctx.save();
-  ctx.shadowColor = 'rgba(60, 40, 30, 0.22)';
-  ctx.shadowBlur = 20;
-  ctx.shadowOffsetY = 6;
+    // Main container
+    ctx.save();
+    ctx.shadowColor = 'rgba(60, 40, 30, 0.22)';
+    ctx.shadowBlur = 20;
+    ctx.shadowOffsetY = 6;
 
-  ctx.fillStyle = '#fbf7f2';
-  pathRoundRect(ctx, dock.x, dock.y, dock.w, dock.h, 22);
-  ctx.fill();
+    ctx.fillStyle = '#fbf7f2';
+    pathRoundRect(ctx, dock.x, dock.y, dock.w, dock.h, 22);
+    ctx.fill();
 
-  ctx.strokeStyle = '#e4ddd6';
-  ctx.lineWidth = 1.5;
-  ctx.stroke();
+    ctx.strokeStyle = '#e4ddd6';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
 
-  ctx.restore();
+    ctx.restore();
 
-  dock.buttons.forEach((button) => {
-    const tool = Tool.PRESETS[button.key]();
-    const isActive = currentTool.key === button.key;
+    dock.buttons.forEach((button) => {
+      const tool = Tool.PRESETS[button.key]();
+      const isActive = currentTool.key === button.key;
 
-    const cx = button.x + button.w / 2;
-    const cy = button.y + button.h / 2;
+      const cx = button.x + button.w / 2;
+      const cy = button.y + button.h / 2;
 
-    if (isActive) {
-      // Dark lower edge
-      ctx.fillStyle = '#005d87';
-      pathRoundRect(
-        ctx,
-        button.x + 4,
-        button.y + 6,
-        button.w - 8,
-        button.h - 8,
-        16
+      if (isActive) {
+        // Dark lower edge
+        ctx.fillStyle = '#005d87';
+        pathRoundRect(
+          ctx,
+          button.x + 4,
+          button.y + 6,
+          button.w - 8,
+          button.h - 8,
+          16
+        );
+        ctx.fill();
+
+        // Blue selected area
+        ctx.fillStyle = '#70baf0';
+        pathRoundRect(
+          ctx,
+          button.x + 4,
+          button.y + 2,
+          button.w - 8,
+          button.h - 8,
+          16
+        );
+        ctx.fill();
+      }
+
+      const inkColor = isActive ? '#005476' : '#5a4540';
+
+      this.drawToolIcon(
+        button.key,
+        cx,
+        cy - 9,
+        inkColor
       );
-      ctx.fill();
 
-      // Blue selected area
-      ctx.fillStyle = '#70baf0';
-      pathRoundRect(
-        ctx,
-        button.x + 4,
-        button.y + 2,
-        button.w - 8,
-        button.h - 8,
-        16
+      ctx.fillStyle = inkColor;
+      ctx.font = font(500, 12);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      ctx.fillText(
+        tool.name.toUpperCase(),
+        cx,
+        cy + 17
       );
-      ctx.fill();
-    }
-
-    const inkColor = isActive ? '#005476' : '#5a4540';
-
-    this.drawToolIcon(
-      button.key,
-      cx,
-      cy - 10,
-      inkColor
-    );
-
-    ctx.fillStyle = inkColor;
-    ctx.font = font(700, 12);
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-
-    ctx.fillText(
-      tool.name.toUpperCase(),
-      cx,
-      cy + 17
-    );
-  });
-}
+    });
+  }
 
   /**
    * Draws a placeholder glyph for one tool.
@@ -1392,38 +1433,106 @@ class Renderer {
 
     ctx.save();
     ctx.translate(cx, cy);
+
     ctx.strokeStyle = color;
     ctx.fillStyle = color;
-    ctx.lineWidth = 2.4;
+    ctx.lineWidth = 3;
     ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
 
-    if (key === 'LINT_ROLLER') {
-      pathRoundRect(ctx, -11, -7, 22, 9, 4);
-      ctx.fill();
+    // --------------------------------------------------------
+    // VACUUM
+    // --------------------------------------------------------
+    if (key === 'VACUUM') {
+      // Main vacuum body
       ctx.beginPath();
-      ctx.moveTo(0, 2);
-      ctx.lineTo(0, 9);
-      ctx.stroke();
-    } else if (key === 'BRUSH') {
-      pathRoundRect(ctx, -11, -8, 22, 8, 3);
-      ctx.fill();
-      for (let i = -8; i <= 8; i += 4) {
-        ctx.beginPath();
-        ctx.moveTo(i, 1);
-        ctx.lineTo(i, 8);
-        ctx.stroke();
-      }
-    } else {
-      ctx.beginPath();
-      ctx.arc(-2, 0, 8, 0, TAU);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(5, -4);
-      ctx.lineTo(12, -9);
-      ctx.lineTo(12, 6);
-      ctx.lineTo(5, 3);
+      ctx.moveTo(-12, 7);
+      ctx.lineTo(-12, -5);
+      ctx.quadraticCurveTo(-12, -11, -6, -11);
+      ctx.lineTo(2, -11);
+      ctx.lineTo(2, 7);
       ctx.closePath();
       ctx.fill();
+
+      // Wheel
+      ctx.beginPath();
+      ctx.arc(-15, 8, 4.5, 0, TAU);
+      ctx.stroke();
+
+      // Hose
+      ctx.beginPath();
+      ctx.moveTo(-2, -9);
+      ctx.quadraticCurveTo(2, -24, 10, -22);
+      ctx.quadraticCurveTo(18, -20, 22, -5);
+      ctx.lineTo(26, 7);
+      ctx.stroke();
+
+      // Floor head
+      ctx.beginPath();
+      ctx.moveTo(5, 7);
+      ctx.lineTo(24, 7);
+      ctx.stroke();
+    }
+
+    // --------------------------------------------------------
+    // ROLLER
+    // --------------------------------------------------------
+    else if (key === 'LINT_ROLLER') {
+      // Upper diamond
+      ctx.beginPath();
+      ctx.moveTo(0, -17);
+      ctx.lineTo(15, -7);
+      ctx.lineTo(0, 3);
+      ctx.lineTo(-15, -7);
+      ctx.closePath();
+      ctx.stroke();
+
+      // Lower layer
+      ctx.beginPath();
+      ctx.moveTo(-13, 2);
+      ctx.lineTo(0, 11);
+      ctx.lineTo(13, 2);
+      ctx.stroke();
+    }
+
+    // --------------------------------------------------------
+    // BRUSH
+    // --------------------------------------------------------
+    else if (key === 'BRUSH') {
+      ctx.save();
+      ctx.rotate(-0.65);
+
+      // Handle
+      pathRoundRect(
+        ctx,
+        -4,
+        -20,
+        8,
+        24,
+        3
+      );
+      ctx.fill();
+
+      // Brush head
+      ctx.beginPath();
+      ctx.ellipse(
+        0,
+        10,
+        9,
+        6,
+        0,
+        0,
+        TAU
+      );
+      ctx.fill();
+
+      // Small bristle opening
+      ctx.fillStyle = '#fbf7f2';
+      ctx.beginPath();
+      ctx.arc(0, 10, 3, 0, TAU);
+      ctx.fill();
+
+      ctx.restore();
     }
 
     ctx.restore();
@@ -1527,7 +1636,7 @@ class Renderer {
 
     // Headline and subtitle.
     ctx.fillStyle = PALETTE.primary;
-    ctx.font = font(800, 25);
+    ctx.font = font(600, 25);
     ctx.fillText(isWin ? 'Mission Accomplished!' : 'Shiki got the rug!', cardW / 2, emblemY + emblemR + 26);
 
     ctx.fillStyle = PALETTE.onSurfaceVariant;
@@ -1560,12 +1669,12 @@ class Renderer {
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       ctx.fillStyle = PALETTE.onSurface;
-      ctx.font = font(700, 13, FONTS.body);
+      ctx.font = font(500, 13, FONTS.body);
       ctx.fillText(row.label, rowX + 16, rowY + 23);
 
       ctx.textAlign = 'right';
       ctx.fillStyle = row.color;
-      ctx.font = font(700, 20);
+      ctx.font = font(600, 20);
       ctx.fillText(row.value, rowX + rowW - 16, rowY + 23);
 
       rowY += 56;
@@ -1583,7 +1692,7 @@ class Renderer {
     ctx.fill();
 
     ctx.fillStyle = PALETTE.onPrimary;
-    ctx.font = font(800, 15);
+    ctx.font = font(600, 15);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('CLEAN AGAIN', button.x + button.w / 2, button.y + button.h / 2);
@@ -1899,10 +2008,10 @@ function loadDisplayFonts() {
   }
 
   return Promise.all([
-    document.fonts.load('800 30px "Plus Jakarta Sans"'),
-    document.fonts.load('700 13px "Plus Jakarta Sans"'),
-    document.fonts.load('700 12px "Be Vietnam Pro"'),
-    document.fonts.load('400 14px "Be Vietnam Pro"'),
+    document.fonts.load('700 30px "Fredoka"'),
+    document.fonts.load('700 13px "Fredoka"'),
+    document.fonts.load('600 12px "Fredoka"'),
+    document.fonts.load('500 14px "Fredoka"'),
   ]).then(() => undefined).catch(() => undefined);
 }
 
