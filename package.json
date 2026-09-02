@@ -1,8 +1,8 @@
 {
   "name": "rug-rush",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A 2D web casual game: clean the dog hair off the rug before Shiki jumps on it.",
-  "author": "Sagi",
+  "author": "Roni Amiel & Noa Amiel",
   "license": "UNLICENSED",
   "private": true,
   "scripts": {

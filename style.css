@@ -1,13 +1,36 @@
 /*
  * File:        style.css
- * Author:      Sagi
- * Description: Page reset and layout for the full-screen Rug Rush canvas.
- * Version:     0.2.1
+ * Author:      Roni Amiel & Noa Amiel
+ * Description: Page reset, cozy backdrop and typography for the full-screen
+ *              Rug Rush canvas. Colors follow the Stitch design tokens.
+ * Version:     0.3.0
  *
  * Modifications:
  *     0.2.0 - 2026-09-01 - Initial stylesheet: reset, centering, cozy backdrop
- *     0.2.1 - 2026-09-01 - Integrated custom cozy color palette and fonts
+ *     0.3.0 - 2026-09-01 - Stitch palette tokens, Plus Jakarta Sans typography,
+ *                          safe-area padding, updated authors
  */
+
+/* ------------------------------------------------------------------
+ * Design tokens - cozy creams, warm browns and coral accents
+ * ------------------------------------------------------------------ */
+:root {
+    --background: #fdf9f4;
+    --surface-bright: #fdf9f4;
+    --surface-container-low: #f7f3ee;
+    --surface-variant: #e6e2dd;
+    --on-surface: #1c1c19;
+    --on-surface-variant: #56423e;
+    --primary: #9f402d;
+    --primary-container: #e2725b;
+    --on-primary: #ffffff;
+    --tertiary: #805533;
+    --wood-dark: #8b5e3c;
+    --wood-light: #a67c52;
+
+    --font-heading: "Plus Jakarta Sans", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-body: "Be Vietnam Pro", "Segoe UI", -apple-system, BlinkMacSystemFont, sans-serif;
+}
 
 /* ------------------------------------------------------------------
  * Reset
@@ -27,28 +50,32 @@ body {
 }
 
 /* ------------------------------------------------------------------
- * Page shell - cozy living-room backdrop behind the canvas
+ * Page shell - the canvas paints the wooden floor, this is the frame
  * ------------------------------------------------------------------ */
 body {
-    --color-primary: #E2725B;
-    --color-secondary: #5BA8E2;
-    --color-tertiary: #8B5E3C;
-    --color-neutral: #F9F5F0;
-
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
-    background-color: var(--color-neutral);
-    background-image: radial-gradient(circle at 50% 35%, #ffffff 0%, var(--color-neutral) 55%, #eddcca 100%);
-    font-family: "Be Vietnam Pro", "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
-    color: var(--color-tertiary);
+    background-color: var(--wood-dark);
+    background-image: linear-gradient(to bottom, var(--wood-light), var(--wood-dark));
+    font-family: var(--font-body);
+    color: var(--on-surface);
 
     /* Keep drags on the canvas from scrolling or selecting the page. */
     overscroll-behavior: none;
     -webkit-user-select: none;
     user-select: none;
     -webkit-tap-highlight-color: transparent;
+}
+
+h1,
+h2,
+h3,
+.headline {
+    font-family: var(--font-heading);
+    font-weight: 800;
+    letter-spacing: -0.02em;
 }
 
 /* ------------------------------------------------------------------
@@ -74,8 +101,10 @@ body {
     transform: translate(-50%, -50%);
     padding: 16px 24px;
     border-radius: 12px;
-    background-color: var(--color-neutral);
-    box-shadow: 0 6px 20px rgba(139, 94, 60, 0.18);
+    background-color: var(--surface-bright);
+    color: var(--on-surface-variant);
+    font-family: var(--font-heading);
+    font-weight: 700;
     font-size: 16px;
-    color: var(--color-tertiary);
+    box-shadow: 0 20px 40px -10px rgba(139, 94, 60, 0.35);
 }

@@ -1,12 +1,14 @@
 <!--
   File:        index.html
-  Author:      Sagi
-  Description: Entry point for Rug Rush. Hosts the full-screen game canvas.
-  Version:     0.2.0
+  Author:      Roni Amiel & Noa Amiel
+  Description: Entry point for Rug Rush. Hosts the full-screen game canvas and
+               loads the Plus Jakarta Sans / Be Vietnam Pro type ramp.
+  Version:     0.3.0
 
   Modifications:
       0.1.0 - 2026-09-01 - Initial scaffold
       0.2.0 - 2026-09-01 - Added game canvas, stylesheet link, no-JS fallback
+      0.3.0 - 2026-09-01 - Added Google Fonts, cozy theme color, updated authors
 -->
 <!DOCTYPE html>
 <html lang="en">
@@ -14,8 +16,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="description" content="Rug Rush - clean the dog hair off the rug before Shiki jumps on it.">
-    <meta name="theme-color" content="#f3e3cf">
+    <meta name="author" content="Roni Amiel &amp; Noa Amiel">
+    <meta name="theme-color" content="#fdf9f4">
     <title>Rug Rush</title>
+
+    <!-- Plus Jakarta Sans carries the headings and UI labels; Be Vietnam Pro the body copy. -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Be+Vietnam+Pro:wght@400;500;700&display=swap">
+
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
