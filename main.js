@@ -96,8 +96,7 @@ Tool.PRESETS = {
 };
 
 /** Order the tools appear in the dock. */
-Tool.ORDER = ['LINT_ROLLER', 'BRUSH', 'VACUUM'];
-
+Tool.ORDER = ['VACUUM', 'LINT_ROLLER', 'BRUSH'];
 /**
  * Represents Shiki, the dog, with a temptation meter and state machine.
  */
@@ -1306,43 +1305,78 @@ class Renderer {
    * @returns {void}
    */
   drawToolDock(dock, currentTool) {
-    const ctx = this.ctx;
+  const ctx = this.ctx;
 
-    ctx.save();
-    ctx.shadowColor = 'rgba(60, 40, 30, 0.28)';
-    ctx.shadowBlur = 22;
-    ctx.shadowOffsetY = 6;
-    ctx.fillStyle = PALETTE.surfaceContainerLow;
-    pathRoundRect(ctx, dock.x, dock.y, dock.w, dock.h, 22);
-    ctx.fill();
-    ctx.restore();
+  // Main container
+  ctx.save();
+  ctx.shadowColor = 'rgba(60, 40, 30, 0.22)';
+  ctx.shadowBlur = 20;
+  ctx.shadowOffsetY = 6;
 
-    dock.buttons.forEach((button) => {
-      const tool = Tool.PRESETS[button.key]();
-      const isActive = currentTool.key === button.key;
-      const cx = button.x + button.w / 2;
-      const cy = button.y + button.h / 2;
+  ctx.fillStyle = '#fbf7f2';
+  pathRoundRect(ctx, dock.x, dock.y, dock.w, dock.h, 22);
+  ctx.fill();
 
-      if (isActive) {
-        ctx.fillStyle = PALETTE.onSecondaryContainer;
-        pathRoundRect(ctx, button.x + 4, button.y + 4, button.w - 8, button.h - 4, 18);
-        ctx.fill();
+  ctx.strokeStyle = '#e4ddd6';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
 
-        ctx.fillStyle = PALETTE.secondaryContainer;
-        pathRoundRect(ctx, button.x + 4, button.y + 2, button.w - 8, button.h - 4, 18);
-        ctx.fill();
-      }
+  ctx.restore();
 
-      const inkColor = isActive ? PALETTE.onSecondaryContainer : PALETTE.onSurfaceVariant;
-      this.drawToolIcon(button.key, cx, cy - 9, inkColor);
+  dock.buttons.forEach((button) => {
+    const tool = Tool.PRESETS[button.key]();
+    const isActive = currentTool.key === button.key;
 
-      ctx.fillStyle = inkColor;
-      ctx.font = font(700, 12, FONTS.body);
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(tool.name.toUpperCase(), cx, cy + 16);
-    });
-  }
+    const cx = button.x + button.w / 2;
+    const cy = button.y + button.h / 2;
+
+    if (isActive) {
+      // Dark lower edge
+      ctx.fillStyle = '#005d87';
+      pathRoundRect(
+        ctx,
+        button.x + 4,
+        button.y + 6,
+        button.w - 8,
+        button.h - 8,
+        16
+      );
+      ctx.fill();
+
+      // Blue selected area
+      ctx.fillStyle = '#70baf0';
+      pathRoundRect(
+        ctx,
+        button.x + 4,
+        button.y + 2,
+        button.w - 8,
+        button.h - 8,
+        16
+      );
+      ctx.fill();
+    }
+
+    const inkColor = isActive ? '#005476' : '#5a4540';
+
+    this.drawToolIcon(
+      button.key,
+      cx,
+      cy - 10,
+      inkColor
+    );
+
+    ctx.fillStyle = inkColor;
+    ctx.font = font(700, 12);
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    ctx.fillText(
+      tool.name.toUpperCase(),
+      cx,
+      cy + 17
+    );
+  });
+}
 
   /**
    * Draws a placeholder glyph for one tool.
