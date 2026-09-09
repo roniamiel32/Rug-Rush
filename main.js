@@ -599,18 +599,34 @@ function computePlayArea(width, height) {
  */
 function computeRugRect(width, height) {
   const play = computePlayArea(width, height);
-  const gutter = clamp(width * 0.14, 86, 160);
-  const rightMargin = clamp(width * 0.05, 18, 70);
-  const verticalMargin = clamp(play.h * 0.06, 14, 48);
+
+  // Keep proportions close to the original rug artwork.
+  const rugRatio = 1.55;
+
+  // Leave a small safe margin above and below the rug.
+  const verticalMargin = 0;
+
+  // Maximum size allowed by the available play area.
+  const maxHeight = play.h - verticalMargin * 2;
+  const maxWidthFromHeight = maxHeight * rugRatio;
+
+  // Make the rug as large as possible,
+  // but never let it extend underneath the HUD or tool dock.
+  const rugWidth = Math.min(
+    width * 0.96,
+    1500,
+    maxWidthFromHeight
+  );
+
+  const rugHeight = rugWidth / rugRatio;
 
   return {
-    x: gutter,
-    y: play.y + verticalMargin,
-    w: Math.max(120, play.w - gutter - rightMargin),
-    h: Math.max(120, play.h - verticalMargin * 2),
+    x: (width - rugWidth) / 2,
+    y: play.y + (play.h - rugHeight) / 2,
+    w: rugWidth,
+    h: rugHeight,
   };
 }
-
 /**
  * Computes the bottom tool dock and its button hit boxes. Draw code and hit
  * testing share this layout so they can never drift apart.
@@ -803,7 +819,19 @@ class Renderer {
       console.error('Could not load floor image:', this.floorImage.src);
     };
 
-    this.floorImage.src = 'assets/images/floor-bg.png';
+    this.floorImage.src = 'assets/images/rug-bg.png';
+
+    this.rugImage = new Image();
+
+    this.rugImage.onload = () => {
+      console.log('Rug image loaded successfully');
+    };
+
+    this.rugImage.onerror = () => {
+      console.error('Could not load rug image:', this.rugImage.src);
+    };
+
+    this.rugImage.src = 'assets/images/rug_level1.png';
   }
 
   /**
@@ -875,56 +903,31 @@ class Renderer {
    * @returns {void}
    */
   drawRug(rug) {
-    const ctx = this.ctx;
-    const radius = 26;
+  const ctx = this.ctx;
 
-    ctx.save();
-    ctx.shadowColor = 'rgba(139, 94, 60, 0.45)';
-    ctx.shadowBlur = 34;
-    ctx.shadowOffsetY = 16;
-    ctx.fillStyle = PALETTE.rug;
-    pathRoundRect(ctx, rug.x, rug.y, rug.w, rug.h, radius);
-    ctx.fill();
-    ctx.restore();
-
-    // Dotted weave, clipped to the rug.
-    ctx.save();
-    pathRoundRect(ctx, rug.x, rug.y, rug.w, rug.h, radius);
-    ctx.clip();
-    ctx.fillStyle = PALETTE.rugPattern;
-    for (let y = rug.y + 8; y < rug.y + rug.h; y += 16) {
-      for (let x = rug.x + 8; x < rug.x + rug.w; x += 16) {
-        ctx.beginPath();
-        ctx.arc(x, y, 1.2, 0, TAU);
-        ctx.fill();
-      }
-    }
-    ctx.restore();
-
-    ctx.strokeStyle = PALETTE.primaryContainer;
-    ctx.lineWidth = 5;
-    pathRoundRect(ctx, rug.x, rug.y, rug.w, rug.h, radius);
-    ctx.stroke();
-
-    const inset = 18;
-    ctx.strokeStyle = PALETTE.outlineVariant;
-    ctx.lineWidth = 2;
-    pathRoundRect(ctx, rug.x + inset, rug.y + inset, rug.w - inset * 2, rug.h - inset * 2, 16);
-    ctx.stroke();
-
-    // Fringe along the short edges.
-    ctx.strokeStyle = PALETTE.tertiaryFixed;
-    ctx.lineWidth = 3;
-    ctx.lineCap = 'round';
-    for (let y = rug.y + 20; y < rug.y + rug.h - 12; y += 15) {
-      ctx.beginPath();
-      ctx.moveTo(rug.x - 9, y);
-      ctx.lineTo(rug.x - 1, y);
-      ctx.moveTo(rug.x + rug.w + 1, y);
-      ctx.lineTo(rug.x + rug.w + 9, y);
-      ctx.stroke();
-    }
+  if (
+    !this.rugImage.complete ||
+    this.rugImage.naturalWidth === 0
+  ) {
+    return;
   }
+
+  ctx.save();
+
+  ctx.shadowColor = 'rgba(60, 40, 30, 0.25)';
+  ctx.shadowBlur = 24;
+  ctx.shadowOffsetY = 10;
+
+  ctx.drawImage(
+    this.rugImage,
+    rug.x,
+    rug.y,
+    rug.w,
+    rug.h
+  );
+
+  ctx.restore();
+}
 
   /**
    * Draws every uncleaned dirt patch as a clump of dog hair. Freshly shed hair
