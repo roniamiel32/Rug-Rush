@@ -600,24 +600,8 @@ function computePlayArea(width, height) {
 function computeRugRect(width, height) {
   const play = computePlayArea(width, height);
 
-  // Keep proportions close to the original rug artwork.
+  const rugWidth = Math.min(width * 0.78, 1200);
   const rugRatio = 1.55;
-
-  // Leave a small safe margin above and below the rug.
-  const verticalMargin = 0;
-
-  // Maximum size allowed by the available play area.
-  const maxHeight = play.h - verticalMargin * 2;
-  const maxWidthFromHeight = maxHeight * rugRatio;
-
-  // Make the rug as large as possible,
-  // but never let it extend underneath the HUD or tool dock.
-  const rugWidth = Math.min(
-    width * 0.96,
-    1500,
-    maxWidthFromHeight
-  );
-
   const rugHeight = rugWidth / rugRatio;
 
   return {
@@ -625,6 +609,30 @@ function computeRugRect(width, height) {
     y: play.y + (play.h - rugHeight) / 2,
     w: rugWidth,
     h: rugHeight,
+  };
+}
+
+function computeDirtRect(rug, width, height) {
+  const play = computePlayArea(width, height);
+
+  const left = Math.max(rug.x, play.x);
+  const top = Math.max(rug.y, play.y);
+
+  const right = Math.min(
+    rug.x + rug.w,
+    play.x + play.w
+  );
+
+  const bottom = Math.min(
+    rug.y + rug.h,
+    play.y + play.h
+  );
+
+  return {
+    x: left,
+    y: top,
+    w: Math.max(0, right - left),
+    h: Math.max(0, bottom - top),
   };
 }
 /**
@@ -903,31 +911,31 @@ class Renderer {
    * @returns {void}
    */
   drawRug(rug) {
-  const ctx = this.ctx;
+    const ctx = this.ctx;
 
-  if (
-    !this.rugImage.complete ||
-    this.rugImage.naturalWidth === 0
-  ) {
-    return;
+    if (
+      !this.rugImage.complete ||
+      this.rugImage.naturalWidth === 0
+    ) {
+      return;
+    }
+
+    ctx.save();
+
+    ctx.shadowColor = 'rgba(60, 40, 30, 0.25)';
+    ctx.shadowBlur = 24;
+    ctx.shadowOffsetY = 10;
+
+    ctx.drawImage(
+      this.rugImage,
+      rug.x,
+      rug.y,
+      rug.w,
+      rug.h
+    );
+
+    ctx.restore();
   }
-
-  ctx.save();
-
-  ctx.shadowColor = 'rgba(60, 40, 30, 0.25)';
-  ctx.shadowBlur = 24;
-  ctx.shadowOffsetY = 10;
-
-  ctx.drawImage(
-    this.rugImage,
-    rug.x,
-    rug.y,
-    rug.w,
-    rug.h
-  );
-
-  ctx.restore();
-}
 
   /**
    * Draws every uncleaned dirt patch as a clump of dog hair. Freshly shed hair
@@ -1730,6 +1738,7 @@ class RugRush {
 
     this.game = null;
     this.rugRect = null;
+    this.dirtRect = null;
     this.dock = null;
 
     this.currentTool = Tool.PRESETS.LINT_ROLLER();
@@ -1762,21 +1771,46 @@ class RugRush {
    * @returns {void}
    */
   reset() {
-    this.rugRect = computeRugRect(this.renderer.width, this.renderer.height);
+  // Calculate the visual size and position of the rug.
+  this.rugRect = computeRugRect(
+    this.renderer.width,
+    this.renderer.height
+  );
 
-    const dirtPatches = spawnDirt(CONFIG.dirtCount, this.rugRect);
-    const dog = new Dog({ baseIncreaseRate: CONFIG.passiveTemptationPerSecond });
+  // Calculate the safe area where hair is allowed to appear.
+  // This prevents hair from spawning underneath the HUD or tool dock.
+  this.dirtRect = computeDirtRect(
+    this.rugRect,
+    this.renderer.width,
+    this.renderer.height
+  );
 
-    this.game = new GameManager({
-      dirtPatches,
-      dog,
-      // Shed hair lands around wherever Shiki is standing, never off the rug.
-      shedDirt: (count) => shedDirtAround(count, this.rugRect, computeDogAnchor(this.game.dog, this.rugRect)),
-    });
+  // Spawn the starting hair only inside the safe area.
+  const dirtPatches = spawnDirt(
+    CONFIG.dirtCount,
+    this.dirtRect
+  );
 
-    this.elapsedSeconds = 0;
-    this.overlayButton = null;
-  }
+  const dog = new Dog({
+    baseIncreaseRate: CONFIG.passiveTemptationPerSecond
+  });
+
+  this.game = new GameManager({
+    dirtPatches,
+    dog,
+
+    // Hair shed by Shiki also stays inside the safe cleaning area.
+    shedDirt: (count) =>
+      shedDirtAround(
+        count,
+        this.dirtRect,
+        computeDogAnchor(this.game.dog, this.rugRect)
+      ),
+  });
+
+  this.elapsedSeconds = 0;
+  this.overlayButton = null;
+}
 
   /**
    * Recomputes the canvas size, rug rectangle and dock layout, keeping any dirt
@@ -1785,16 +1819,34 @@ class RugRush {
    * @returns {void}
    */
   handleResize() {
-    const previousRug = this.rugRect;
+  const previousDirtRect = this.dirtRect;
 
-    this.renderer.resize();
-    this.rugRect = computeRugRect(this.renderer.width, this.renderer.height);
-    this.dock = computeToolDockLayout(this.renderer.width, this.renderer.height);
+  this.renderer.resize();
 
-    if (this.game && previousRug) {
-      remapDirtToRug(this.game.dirtPatches, previousRug, this.rugRect);
-    }
+  this.rugRect = computeRugRect(
+    this.renderer.width,
+    this.renderer.height
+  );
+
+  this.dirtRect = computeDirtRect(
+    this.rugRect,
+    this.renderer.width,
+    this.renderer.height
+  );
+
+  this.dock = computeToolDockLayout(
+    this.renderer.width,
+    this.renderer.height
+  );
+
+  if (this.game && previousDirtRect) {
+    remapDirtToRug(
+      this.game.dirtPatches,
+      previousDirtRect,
+      this.dirtRect
+    );
   }
+}
 
   /**
    * The main loop. Converts the rAF timestamp into a deltaTime in seconds,
