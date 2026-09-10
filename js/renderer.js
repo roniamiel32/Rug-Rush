@@ -1,5 +1,6 @@
 import { CONFIG, FONTS, LAYOUT, PALETTE, TAU, font } from './config.js';
 import { Dog, GameManager, Tool } from './game.js';
+import { formatTime } from './time.js';
 import { clamp, computeDogAnchor, hash2, lerp, pathRoundRect } from './geometry.js';
 
 // ------------------------------------------------------------
@@ -389,9 +390,10 @@ export class Renderer {
   }
 
   /**
-   * Draws the top HUD bar: cleaning progress and Shiki's temptation meter.
+   * Draws the top HUD bar: cleaning progress, round time and Shiki's
+   * temptation meter.
    *
-   * @param {{cleanedPercent: number, dog: Dog}} stats HUD data.
+   * @param {{cleanedPercent: number, dog: Dog, elapsedSeconds: number, bestTimeSeconds: number|null}} stats HUD data.
    * @param {boolean} isMuted Whether audio is currently muted.
    * @returns {{pause: object, restart: object, mute: object}} Button hit boxes.
    */
@@ -451,7 +453,80 @@ export class Renderer {
     const meterX = this.width - meterW - 20;
     this.drawTemptationMeter(stats.dog, meterX, centerY - 10, meterW);
 
-    return this.drawHudControls(isMuted);
+    const controls = this.drawHudControls(isMuted);
+    this.drawHudTimeStats(stats, controls);
+
+    return controls;
+  }
+
+  /**
+   * Draws non-interactive TIME and BEST readouts near the HUD controls.
+   *
+   * @param {{elapsedSeconds: number, bestTimeSeconds: number|null}} stats Timer data.
+   * @param {{pause: object, restart: object, mute: object}} controls Button hit boxes.
+   * @returns {void}
+   */
+  drawHudTimeStats(stats, controls) {
+    const ctx = this.ctx;
+    const centerX = controls.pause.x + (controls.mute.x + controls.mute.w - controls.pause.x) / 2;
+    const timeText = formatTime(stats.elapsedSeconds || 0);
+    const bestText = stats.bestTimeSeconds === null ? '--:--' : formatTime(stats.bestTimeSeconds);
+
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    if (this.width < 700) {
+      this.drawHudTimeLine('TIME', timeText, centerX, 50);
+      this.drawHudTimeLine('BEST', bestText, centerX, 67);
+    } else {
+      this.drawHudTimeColumn('TIME', timeText, centerX - 46, 54);
+      this.drawHudTimeColumn('BEST', bestText, centerX + 46, 54);
+    }
+
+    ctx.restore();
+  }
+
+  /**
+   * Draws one compact timer row for narrower HUDs.
+   *
+   * @param {string} label Row label.
+   * @param {string} value Formatted time.
+   * @param {number} x Center X.
+   * @param {number} y Center Y.
+   * @returns {void}
+   */
+  drawHudTimeLine(label, value, x, y) {
+    const ctx = this.ctx;
+
+    ctx.font = font(500, 9, FONTS.body);
+    ctx.fillStyle = PALETTE.onSurfaceVariant;
+    ctx.fillText(label, x - 24, y);
+
+    ctx.font = font(600, 13);
+    ctx.fillStyle = PALETTE.tertiary;
+    ctx.fillText(value, x + 18, y);
+  }
+
+  /**
+   * Draws one stacked timer readout for roomier HUDs.
+   *
+   * @param {string} label Column label.
+   * @param {string} value Formatted time.
+   * @param {number} x Center X.
+   * @param {number} y Label center Y.
+   * @returns {void}
+   */
+  drawHudTimeColumn(label, value, x, y) {
+    const ctx = this.ctx;
+
+    ctx.font = font(500, 9, FONTS.body);
+    ctx.fillStyle = PALETTE.onSurfaceVariant;
+    ctx.fillText(label, x, y);
+
+    ctx.font = font(600, 15);
+    ctx.fillStyle = PALETTE.tertiary;
+    ctx.fillText(value, x, y + 16);
   }
 
   /**
@@ -845,7 +920,7 @@ export class Renderer {
   /**
    * Draws the end-of-round modal card.
    *
-   * @param {{result: string, cleanedPercent: number, dog: Dog}} stats Round summary.
+   * @param {{result: string, cleanedPercent: number, dog: Dog, finalTimeSeconds: number|null, bestTimeSeconds: number|null, isNewBestTime: boolean}} stats Round summary.
    * @returns {{x: number, y: number, w: number, h: number}|null} The button hit box.
    */
   drawOverlay(stats) {
@@ -860,7 +935,7 @@ export class Renderer {
     // The card is drawn at a nominal size and scaled to fit, so it never
     // overflows a short viewport.
     const cardW = 360;
-    const cardH = 392;
+    const cardH = isWin ? 506 : 392;
     const scale = Math.min(1, (this.width - 32) / cardW, (this.height - 32) / cardH);
     const originX = (this.width - cardW * scale) / 2;
     const originY = (this.height - cardH * scale) / 2;
@@ -927,6 +1002,22 @@ export class Renderer {
       },
     ];
 
+    if (isWin) {
+      rows.push(
+        {
+          label: 'TIME',
+          value: formatTime(stats.finalTimeSeconds || 0),
+          color: PALETTE.primary,
+        },
+        {
+          label: 'BEST',
+          value: stats.bestTimeSeconds === null ? '--:--' : formatTime(stats.bestTimeSeconds),
+          color: PALETTE.secondary,
+          badge: stats.isNewBestTime ? 'NEW BEST!' : '',
+        },
+      );
+    }
+
     rows.forEach((row) => {
       ctx.fillStyle = PALETTE.surfaceContainerLow;
       pathRoundRect(ctx, rowX, rowY, rowW, 46, 14);
@@ -937,6 +1028,12 @@ export class Renderer {
       ctx.fillStyle = PALETTE.onSurface;
       ctx.font = font(500, 13, FONTS.body);
       ctx.fillText(row.label, rowX + 16, rowY + 23);
+
+      if (row.badge) {
+        ctx.fillStyle = PALETTE.primary;
+        ctx.font = font(600, 10);
+        ctx.fillText(row.badge, rowX + 64, rowY + 23);
+      }
 
       ctx.textAlign = 'right';
       ctx.fillStyle = row.color;

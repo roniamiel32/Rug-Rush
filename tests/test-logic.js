@@ -28,12 +28,13 @@ const __dirname = path.dirname(__filename);
  * @returns {object} The game's classes and helper functions.
  */
 async function loadGame() {
-  const [audio, config, game, geometry, main] = await Promise.all([
+  const [audio, config, game, geometry, main, time] = await Promise.all([
     import('../js/audio.js'),
     import('../js/config.js'),
     import('../js/game.js'),
     import('../js/geometry.js'),
     import('../js/main.js'),
+    import('../js/time.js'),
   ]);
 
   return {
@@ -41,7 +42,8 @@ async function loadGame() {
     ...config,
     ...game,
     ...geometry,
-    GAME_VERSION: main.GAME_VERSION,
+    ...main,
+    ...time,
   };
 }
 
@@ -96,6 +98,31 @@ function fakeStorage(initial = {}) {
       data[key] = String(value);
     },
   };
+}
+
+function fakeCanvas() {
+  return {
+    clientWidth: 1280,
+    clientHeight: 720,
+    style: {},
+    getContext() {
+      return {};
+    },
+    getBoundingClientRect() {
+      return { left: 0, top: 0 };
+    },
+    addEventListener() {},
+  };
+}
+
+function buildRugRush({ storage = fakeStorage() } = {}) {
+  globalThis.Image = globalThis.Image || class Image {};
+
+  const rugRush = new G.RugRush(fakeCanvas());
+  rugRush.bestTimes = new G.BestTimeManager({ storage });
+  rugRush.renderer.width = 1280;
+  rugRush.renderer.height = 720;
+  return rugRush;
 }
 
 /**
@@ -405,6 +432,94 @@ test('AudioManager does not play registered sounds while muted', () => {
 
   assert.strictEqual(audio.play('clean'), false);
   assert.strictEqual(plays, 0);
+});
+
+// ---------------- Timer and Best Time ----------------
+test('formatTime displays MM:SS', () => {
+  assert.strictEqual(G.formatTime(8), '00:08');
+  assert.strictEqual(G.formatTime(43.9), '00:43');
+  assert.strictEqual(G.formatTime(67), '01:07');
+});
+
+test('RugRush timer advances during playing', () => {
+  const rugRush = buildRugRush();
+  rugRush.reset(G.APP_STATE.PLAYING);
+
+  rugRush.update(1.25);
+
+  assert.strictEqual(rugRush.elapsedSeconds, 1.25);
+});
+
+test('RugRush timer does not advance while paused', () => {
+  const rugRush = buildRugRush();
+  rugRush.reset(G.APP_STATE.PLAYING);
+  rugRush.update(2);
+  rugRush.pause();
+  rugRush.update(5);
+
+  assert.strictEqual(rugRush.elapsedSeconds, 2);
+});
+
+test('RugRush timer resets on restart', () => {
+  const rugRush = buildRugRush();
+  rugRush.reset(G.APP_STATE.PLAYING);
+  rugRush.update(3);
+  rugRush.reset(G.APP_STATE.PLAYING);
+
+  assert.strictEqual(rugRush.elapsedSeconds, 0);
+});
+
+test('a successful round records Best Time', () => {
+  const storage = fakeStorage();
+  const rugRush = buildRugRush({ storage });
+  rugRush.reset(G.APP_STATE.PLAYING);
+  rugRush.elapsedSeconds = 42.5;
+  rugRush.game.result = G.GameManager.RESULT.WIN;
+
+  rugRush.finishRoundIfNeeded();
+
+  assert.strictEqual(rugRush.bestTimes.getBestTime(), 42.5);
+  assert.strictEqual(rugRush.isNewBestTime, true);
+  assert.strictEqual(rugRush.appState, G.APP_STATE.FINISHED);
+});
+
+test('a slower successful round does not replace Best Time', () => {
+  const storage = fakeStorage({ [G.BEST_TIME_STORAGE_KEY]: '30' });
+  const rugRush = buildRugRush({ storage });
+  rugRush.reset(G.APP_STATE.PLAYING);
+  rugRush.elapsedSeconds = 45;
+  rugRush.game.result = G.GameManager.RESULT.WIN;
+
+  rugRush.finishRoundIfNeeded();
+
+  assert.strictEqual(rugRush.bestTimes.getBestTime(), 30);
+  assert.strictEqual(rugRush.isNewBestTime, false);
+});
+
+test('a faster successful round replaces Best Time', () => {
+  const storage = fakeStorage({ [G.BEST_TIME_STORAGE_KEY]: '30' });
+  const rugRush = buildRugRush({ storage });
+  rugRush.reset(G.APP_STATE.PLAYING);
+  rugRush.elapsedSeconds = 24.25;
+  rugRush.game.result = G.GameManager.RESULT.WIN;
+
+  rugRush.finishRoundIfNeeded();
+
+  assert.strictEqual(rugRush.bestTimes.getBestTime(), 24.25);
+  assert.strictEqual(rugRush.isNewBestTime, true);
+});
+
+test('a failed round does not update Best Time', () => {
+  const storage = fakeStorage({ [G.BEST_TIME_STORAGE_KEY]: '30' });
+  const rugRush = buildRugRush({ storage });
+  rugRush.reset(G.APP_STATE.PLAYING);
+  rugRush.elapsedSeconds = 20;
+  rugRush.game.result = G.GameManager.RESULT.LOSS;
+
+  rugRush.finishRoundIfNeeded();
+
+  assert.strictEqual(rugRush.bestTimes.getBestTime(), 30);
+  assert.strictEqual(rugRush.isNewBestTime, false);
 });
 
 // ---------------- Layout helpers ----------------

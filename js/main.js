@@ -2,6 +2,7 @@ import { CONFIG } from './config.js';
 import { AudioManager } from './audio.js';
 import { Dog, GameManager, Tool } from './game.js';
 import { Renderer } from './renderer.js';
+import { BestTimeManager } from './time.js';
 import { clamp, computeDirtRect, computeDogAnchor, computePlayArea, computeRugRect, computeToolDockLayout, hitTestToolDock, remapDirtToRug, shedDirtAround, spawnDirt } from './geometry.js';
 
 /** Semantic version of the game. Mirrors the "version" field in package.json. */
@@ -11,6 +12,7 @@ export const APP_STATE = Object.freeze({
   START: 'start',
   PLAYING: 'playing',
   PAUSED: 'paused',
+  FINISHED: 'finished',
 });
 
 function hitTestRect(rect, x, y) {
@@ -33,6 +35,7 @@ export class RugRush {
     this.canvas = canvas;
     this.renderer = new Renderer(canvas);
     this.audio = new AudioManager();
+    this.bestTimes = new BestTimeManager();
 
     this.game = null;
     this.rugRect = null;
@@ -49,6 +52,8 @@ export class RugRush {
 
     this.lastFrameMs = 0;
     this.elapsedSeconds = 0;
+    this.finalTimeSeconds = null;
+    this.isNewBestTime = false;
     this.isRunning = false;
   }
 
@@ -111,6 +116,8 @@ export class RugRush {
   });
 
   this.elapsedSeconds = 0;
+  this.finalTimeSeconds = null;
+  this.isNewBestTime = false;
   this.pointer.isDown = false;
   this.appState = nextState;
   this.startButton = null;
@@ -226,17 +233,42 @@ export class RugRush {
   update(deltaTime) {
     if (this.appState !== APP_STATE.PLAYING) return;
 
-    this.elapsedSeconds += deltaTime;
+    if (this.finishRoundIfNeeded()) return;
 
-    if (this.game.result !== GameManager.RESULT.IN_PROGRESS) return;
+    this.elapsedSeconds += deltaTime;
 
     // Holding the tool down keeps cleaning, and keeps tempting Shiki. The
     // penalty is scaled by deltaTime, so frame rate never changes the balance.
     if (this.pointer.isDown && deltaTime > 0) {
       this.game.cleanAt(this.pointer.x, this.pointer.y, this.currentTool, deltaTime);
+      if (this.finishRoundIfNeeded()) return;
     }
 
     this.game.update(deltaTime);
+    this.finishRoundIfNeeded();
+  }
+
+  /**
+   * Freezes and records a completed round once, if the logic layer is finished.
+   *
+   * @returns {boolean} True when the round is no longer in progress.
+   */
+  finishRoundIfNeeded() {
+    if (!this.game || this.game.result === GameManager.RESULT.IN_PROGRESS) return false;
+    if (this.appState === APP_STATE.FINISHED) return true;
+
+    this.pointer.isDown = false;
+    this.appState = APP_STATE.FINISHED;
+    this.finalTimeSeconds = this.elapsedSeconds;
+    this.isNewBestTime = false;
+
+    if (this.game.result === GameManager.RESULT.WIN) {
+      const best = this.bestTimes.recordSuccess(this.finalTimeSeconds);
+      this.isNewBestTime = best.isNewBest;
+    }
+
+    this.updateCanvasCursor();
+    return true;
   }
 
   /**
@@ -249,6 +281,10 @@ export class RugRush {
       result: this.game.result,
       cleanedPercent: this.game.getCleanedPercent(),
       dog: this.game.dog,
+      elapsedSeconds: this.elapsedSeconds,
+      finalTimeSeconds: this.finalTimeSeconds,
+      bestTimeSeconds: this.bestTimes.getBestTime(),
+      isNewBestTime: this.isNewBestTime,
     };
 
     this.renderer.drawBackground();
@@ -371,7 +407,7 @@ export class RugRush {
       return;
     }
 
-    if (this.game.result !== GameManager.RESULT.IN_PROGRESS) {
+    if (this.appState === APP_STATE.FINISHED || this.game.result !== GameManager.RESULT.IN_PROGRESS) {
       this.reset();
       return;
     }
@@ -403,6 +439,7 @@ export class RugRush {
 
     // A single tap still costs a slice of tool time, so tapping is never free.
     this.game.cleanAt(this.pointer.x, this.pointer.y, this.currentTool, CONFIG.tapImpulseSeconds);
+    this.finishRoundIfNeeded();
   }
 
   /**
