@@ -116,6 +116,7 @@ export class RugRush {
   this.startButton = null;
   this.pauseButtons = null;
   this.overlayButton = null;
+  this.updateCanvasCursor();
 }
 
   /**
@@ -129,6 +130,7 @@ export class RugRush {
 
     this.pointer.isDown = false;
     this.appState = APP_STATE.PAUSED;
+    this.updateCanvasCursor();
   }
 
   /**
@@ -141,6 +143,7 @@ export class RugRush {
 
     this.pointer.isDown = false;
     this.appState = APP_STATE.PLAYING;
+    this.updateCanvasCursor();
   }
 
   /**
@@ -190,6 +193,8 @@ export class RugRush {
       this.dirtRect
     );
   }
+
+  this.updateCanvasCursor();
 }
 
   /**
@@ -262,6 +267,8 @@ export class RugRush {
     } else if (this.appState === APP_STATE.PAUSED) {
       this.pauseButtons = this.renderer.drawPauseOverlay();
     }
+
+    this.updateCanvasCursor();
   }
 
   /**
@@ -285,6 +292,32 @@ export class RugRush {
     this.pointer.x = clientX - rect.left;
     this.pointer.y = clientY - rect.top;
     this.pointer.isOnScreen = true;
+    this.updateCanvasCursor();
+  }
+
+  /**
+   * Updates the browser cursor over the canvas. The cleaning cursor remains
+   * hidden in the play area; the system cursor appears over the top HUD.
+   *
+   * @returns {void}
+   */
+  updateCanvasCursor() {
+    if (!this.pointer.isOnScreen) {
+      this.canvas.style.cursor = 'none';
+      return;
+    }
+
+    if (
+      hitTestRect(this.hudControls?.pause, this.pointer.x, this.pointer.y) ||
+      hitTestRect(this.hudControls?.restart, this.pointer.x, this.pointer.y) ||
+      hitTestRect(this.hudControls?.mute, this.pointer.x, this.pointer.y)
+    ) {
+      this.canvas.style.cursor = 'pointer';
+      return;
+    }
+
+    const play = computePlayArea(this.renderer.width, this.renderer.height);
+    this.canvas.style.cursor = this.pointer.y < play.y ? 'default' : 'none';
   }
 
   /**
@@ -397,6 +430,7 @@ export class RugRush {
     canvas.addEventListener('mouseleave', () => {
       this.pointer.isDown = false;
       this.pointer.isOnScreen = false;
+      this.updateCanvasCursor();
     });
 
     // --- Touch ---
