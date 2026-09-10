@@ -14,38 +14,36 @@
  * Usage: npm test   (or: node tests/test-logic.js)
  */
 
-'use strict';
+import assert from 'assert';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-const assert = require('assert');
-const fs = require('fs');
-const path = require('path');
-const vm = require('vm');
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
- * Loads main.js into a sandbox and returns its top-level declarations.
- * main.js is a plain browser script with no exports, so the source is evaluated
- * with a trailing expression that hands the classes back out. The browser
- * bootstrap is skipped because the sandbox has no `document`.
+ * Loads the game's ES modules and returns the declarations covered by tests.
  *
  * @returns {object} The game's classes and helper functions.
  */
-function loadGame() {
-  const source = fs.readFileSync(path.join(__dirname, '..', 'main.js'), 'utf8');
-  const sandbox = { console: { log() {} } };
-  vm.createContext(sandbox);
+async function loadGame() {
+  const [config, game, geometry, main] = await Promise.all([
+    import('../js/config.js'),
+    import('../js/game.js'),
+    import('../js/geometry.js'),
+    import('../js/main.js'),
+  ]);
 
-  const exposed = `
-;({
-  Dirt, Tool, Dog, GameManager,
-  computePlayArea, computeRugRect, computeToolDockLayout, hitTestToolDock,
-  computeDogAnchor, spawnDirt, shedDirtAround, remapDirtToRug,
-  clamp, lerp, GAME_VERSION, CONFIG, PALETTE, FONTS,
-});`;
-
-  return vm.runInContext(source + exposed, sandbox);
+  return {
+    ...config,
+    ...game,
+    ...geometry,
+    GAME_VERSION: main.GAME_VERSION,
+  };
 }
 
-const G = loadGame();
+const G = await loadGame();
 
 let passed = 0;
 let failed = 0;
@@ -355,14 +353,15 @@ test('patches age while the round runs', () => {
 });
 
 // ---------------- Layout helpers ----------------
-test('computeRugRect keeps the rug between the HUD and the dock', () => {
+test('computeRugRect centers the visual rug in the play area', () => {
   const rug = G.computeRugRect(1280, 720);
   const play = G.computePlayArea(1280, 720);
 
   assert.ok(rug.x > 0, 'rug should leave a left gutter for Shiki');
   assert.ok(rug.x + rug.w <= 1280, 'rug should not overflow the right edge');
-  assert.ok(rug.y >= play.y, 'rug should clear the top HUD bar');
-  assert.ok(rug.y + rug.h <= play.y + play.h, 'rug should clear the tool dock');
+  assert.ok(Math.abs((rug.y + rug.h / 2) - (play.y + play.h / 2)) < 0.001);
+  assert.strictEqual(rug.w, 1280 * 0.78);
+  assert.strictEqual(rug.h, rug.w / 1.55);
 });
 
 test('computeRugRect stays valid on a tiny viewport', () => {
@@ -374,6 +373,7 @@ test('the tool dock lays out one button per tool, inside the dock', () => {
   const dock = G.computeToolDockLayout(1280, 720);
 
   assert.strictEqual(dock.buttons.length, G.Tool.ORDER.length);
+  assert.deepStrictEqual(dock.buttons.map((button) => button.key), G.Tool.ORDER);
   dock.buttons.forEach((button) => {
     assert.ok(button.x >= dock.x && button.x + button.w <= dock.x + dock.w);
     assert.ok(button.y >= dock.y && button.y + button.h <= dock.y + dock.h);
@@ -382,9 +382,10 @@ test('the tool dock lays out one button per tool, inside the dock', () => {
 
 test('hitTestToolDock returns the tool under the point', () => {
   const dock = G.computeToolDockLayout(1280, 720);
-  const target = dock.buttons[2];
 
-  assert.strictEqual(hitCenter(dock, target), 'VACUUM');
+  dock.buttons.forEach((button) => {
+    assert.strictEqual(hitCenter(dock, button), button.key);
+  });
   assert.strictEqual(G.hitTestToolDock(dock, 5, 5), null);
 });
 
@@ -451,9 +452,9 @@ test('remapDirtToRug no-ops on a degenerate source rect', () => {
 });
 
 // ---------------- Design tokens & version ----------------
-test('typography uses Plus Jakarta Sans for headings and UI', () => {
-  assert.ok(G.FONTS.heading.includes('Plus Jakarta Sans'));
-  assert.ok(G.FONTS.body.includes('Be Vietnam Pro'));
+test('typography uses Fredoka for headings and UI', () => {
+  assert.ok(G.FONTS.heading.includes('Fredoka'));
+  assert.ok(G.FONTS.body.includes('Fredoka'));
 });
 
 test('the palette carries the Stitch cream, brown and coral tokens', () => {
