@@ -392,9 +392,10 @@ export class Renderer {
    * Draws the top HUD bar: cleaning progress and Shiki's temptation meter.
    *
    * @param {{cleanedPercent: number, dog: Dog}} stats HUD data.
-   * @returns {void}
+   * @param {boolean} isMuted Whether audio is currently muted.
+   * @returns {{pause: object, restart: object, mute: object}} Button hit boxes.
    */
-  drawTopBar(stats) {
+  drawTopBar(stats, isMuted = false) {
     const ctx = this.ctx;
     const h = LAYOUT.topBarHeight;
 
@@ -449,6 +450,102 @@ export class Renderer {
     const meterW = isNarrow ? Math.max(110, this.width * 0.34) : 210;
     const meterX = this.width - meterW - 20;
     this.drawTemptationMeter(stats.dog, meterX, centerY - 10, meterW);
+
+    return this.drawHudControls(isMuted);
+  }
+
+  /**
+   * Draws compact pause and restart controls in the top HUD.
+   *
+   * @param {boolean} isMuted Whether audio is currently muted.
+   * @returns {{pause: object, restart: object, mute: object}} Button hit boxes.
+   */
+  drawHudControls(isMuted) {
+    const ctx = this.ctx;
+    const size = 28;
+    const gap = 8;
+    const totalW = size * 3 + gap * 2;
+    const y = 8;
+    const pause = {
+      x: (this.width - totalW) / 2,
+      y,
+      w: size,
+      h: size,
+    };
+    const restart = {
+      x: pause.x + size + gap,
+      y,
+      w: size,
+      h: size,
+    };
+    const mute = {
+      x: restart.x + size + gap,
+      y,
+      w: size,
+      h: size,
+    };
+
+    this.drawHudIconButton(pause, 'pause');
+    this.drawHudIconButton(restart, 'restart');
+    this.drawHudIconButton(mute, isMuted ? 'volume-x' : 'volume-2');
+
+    return { pause, restart, mute };
+  }
+
+  /**
+   * Draws one small icon button for the HUD controls.
+   *
+   * @param {{x: number, y: number, w: number, h: number}} button Button bounds.
+   * @param {'pause'|'restart'|'volume-2'|'volume-x'} icon Icon type.
+   * @returns {void}
+   */
+  drawHudIconButton(button, icon) {
+    const ctx = this.ctx;
+    const cx = button.x + button.w / 2;
+    const cy = button.y + button.h / 2;
+
+    ctx.save();
+    ctx.fillStyle = PALETTE.surfaceContainerLow;
+    pathRoundRect(ctx, button.x, button.y, button.w, button.h, 10);
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(86, 66, 62, 0.18)';
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    ctx.strokeStyle = PALETTE.onSurfaceVariant;
+    ctx.lineWidth = 2.2;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    const iconSize = 18;
+    const iconX = cx - iconSize / 2;
+    const iconY = cy - iconSize / 2;
+    const scale = iconSize / 24;
+
+    ctx.translate(iconX, iconY);
+    ctx.scale(scale, scale);
+    ctx.lineWidth = 2;
+
+    if (icon === 'pause') {
+      ctx.beginPath();
+      ctx.rect(6, 4, 4, 16);
+      ctx.rect(14, 4, 4, 16);
+      ctx.stroke();
+    } else if (icon === 'restart') {
+      ctx.stroke(new Path2D('M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8'));
+      ctx.stroke(new Path2D('M3 3v5h5'));
+    } else if (icon === 'volume-2') {
+      ctx.stroke(new Path2D('M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z'));
+      ctx.stroke(new Path2D('M16 9a5 5 0 0 1 0 6'));
+      ctx.stroke(new Path2D('M19.364 18.364a9 9 0 0 0 0-12.728'));
+    } else {
+      ctx.stroke(new Path2D('M11 4.702a.7.7 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.7.7 0 0 0 11 19.298z'));
+      ctx.stroke(new Path2D('m16.5 14.5 5-5'));
+      ctx.stroke(new Path2D('m16.5 9.5 5 5'));
+    }
+
+    ctx.restore();
   }
 
   /**
@@ -647,11 +744,13 @@ export class Renderer {
     const ctx = this.ctx;
 
     ctx.save();
-    ctx.translate(cx, cy);
+    const iconSize = 27;
+    const scale = iconSize / 24;
+    ctx.translate(cx - iconSize / 2, cy - iconSize / 2);
+    ctx.scale(scale, scale);
 
     ctx.strokeStyle = color;
-    ctx.fillStyle = color;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = 2;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
@@ -659,33 +758,15 @@ export class Renderer {
     // VACUUM
     // --------------------------------------------------------
     if (key === 'VACUUM') {
-      // Main vacuum body
+      ctx.stroke(new Path2D('M11 17h2'));
+      ctx.stroke(new Path2D('M12 12h.01'));
+      ctx.stroke(new Path2D('M17 12a5 5 0 0 0-10 0'));
+      ctx.stroke(new Path2D('M19 2v2.8'));
+      ctx.stroke(new Path2D('M2 5h2.8'));
+      ctx.stroke(new Path2D('M22 5h-2.8'));
+      ctx.stroke(new Path2D('M5 2v2.8'));
       ctx.beginPath();
-      ctx.moveTo(-12, 7);
-      ctx.lineTo(-12, -5);
-      ctx.quadraticCurveTo(-12, -11, -6, -11);
-      ctx.lineTo(2, -11);
-      ctx.lineTo(2, 7);
-      ctx.closePath();
-      ctx.fill();
-
-      // Wheel
-      ctx.beginPath();
-      ctx.arc(-15, 8, 4.5, 0, TAU);
-      ctx.stroke();
-
-      // Hose
-      ctx.beginPath();
-      ctx.moveTo(-2, -9);
-      ctx.quadraticCurveTo(2, -24, 10, -22);
-      ctx.quadraticCurveTo(18, -20, 22, -5);
-      ctx.lineTo(26, 7);
-      ctx.stroke();
-
-      // Floor head
-      ctx.beginPath();
-      ctx.moveTo(5, 7);
-      ctx.lineTo(24, 7);
+      ctx.arc(12, 12, 10, 0, TAU);
       ctx.stroke();
     }
 
@@ -693,20 +774,20 @@ export class Renderer {
     // ROLLER
     // --------------------------------------------------------
     else if (key === 'LINT_ROLLER') {
-      // Upper diamond
-      ctx.beginPath();
-      ctx.moveTo(0, -17);
-      ctx.lineTo(15, -7);
-      ctx.lineTo(0, 3);
-      ctx.lineTo(-15, -7);
-      ctx.closePath();
+      pathRoundRect(ctx, 5, 4, 14, 8, 2);
       ctx.stroke();
 
-      // Lower layer
       ctx.beginPath();
-      ctx.moveTo(-13, 2);
-      ctx.lineTo(0, 11);
-      ctx.lineTo(13, 2);
+      ctx.moveTo(9, 12);
+      ctx.lineTo(12, 16);
+      ctx.lineTo(12, 21);
+      ctx.moveTo(10, 21);
+      ctx.lineTo(14, 21);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.moveTo(7, 8);
+      ctx.lineTo(17, 8);
       ctx.stroke();
     }
 
@@ -714,40 +795,10 @@ export class Renderer {
     // BRUSH
     // --------------------------------------------------------
     else if (key === 'BRUSH') {
-      ctx.save();
-      ctx.rotate(-0.65);
-
-      // Handle
-      pathRoundRect(
-        ctx,
-        -4,
-        -20,
-        8,
-        24,
-        3
-      );
-      ctx.fill();
-
-      // Brush head
-      ctx.beginPath();
-      ctx.ellipse(
-        0,
-        10,
-        9,
-        6,
-        0,
-        0,
-        TAU
-      );
-      ctx.fill();
-
-      // Small bristle opening
-      ctx.fillStyle = '#fbf7f2';
-      ctx.beginPath();
-      ctx.arc(0, 10, 3, 0, TAU);
-      ctx.fill();
-
-      ctx.restore();
+      ctx.stroke(new Path2D('m16 22-1-4'));
+      ctx.stroke(new Path2D('M19 14a1 1 0 0 0 1-1v-1a2 2 0 0 0-2-2h-3a1 1 0 0 1-1-1V4a2 2 0 0 0-4 0v5a1 1 0 0 1-1 1H6a2 2 0 0 0-2 2v1a1 1 0 0 0 1 1'));
+      ctx.stroke(new Path2D('M19 14H5l-1.973 6.767A1 1 0 0 0 4 22h16a1 1 0 0 0 .973-1.233z'));
+      ctx.stroke(new Path2D('m8 22 1-4'));
     }
 
     ctx.restore();
@@ -922,5 +973,178 @@ export class Renderer {
       h: button.h * scale,
     };
   }
-}
 
+  /**
+   * Draws the first-load start screen over the game canvas.
+   *
+   * @returns {{x: number, y: number, w: number, h: number}} Play button hit box.
+   */
+  drawStartScreen() {
+    const ctx = this.ctx;
+
+    ctx.fillStyle = 'rgba(49, 48, 45, 0.42)';
+    ctx.fillRect(0, 0, this.width, this.height);
+
+    const cardW = 340;
+    const cardH = 274;
+    const scale = Math.min(1, (this.width - 32) / cardW, (this.height - 32) / cardH);
+    const originX = (this.width - cardW * scale) / 2;
+    const originY = (this.height - cardH * scale) / 2;
+
+    ctx.save();
+    ctx.translate(originX, originY);
+    ctx.scale(scale, scale);
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(139, 94, 60, 0.35)';
+    ctx.shadowBlur = 34;
+    ctx.shadowOffsetY = 14;
+    ctx.fillStyle = PALETTE.surfaceBright;
+    pathRoundRect(ctx, 0, 0, cardW, cardH, 24);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    pathRoundRect(ctx, 0, 0, cardW, cardH, 24);
+    ctx.clip();
+    ctx.fillStyle = PALETTE.primaryContainer;
+    ctx.fillRect(0, 0, cardW, 14);
+    ctx.restore();
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    ctx.fillStyle = PALETTE.primary;
+    ctx.font = font(700, 38);
+    ctx.fillText('RUG RUSH', cardW / 2, 68);
+
+    ctx.fillStyle = PALETTE.onSurfaceVariant;
+    ctx.font = font(500, 16, FONTS.body);
+    ctx.fillText('Clean the rug before Shiki gets to it.', cardW / 2, 112);
+
+    ctx.fillStyle = PALETTE.tertiary;
+    ctx.font = font(400, 14, FONTS.body);
+    ctx.fillText('Some tools get her attention faster.', cardW / 2, 140);
+
+    const button = { x: 44, y: 184, w: cardW - 88, h: 48 };
+
+    ctx.fillStyle = PALETTE.onPrimaryFixedVariant;
+    pathRoundRect(ctx, button.x, button.y + 4, button.w, button.h, 14);
+    ctx.fill();
+
+    ctx.fillStyle = PALETTE.primary;
+    pathRoundRect(ctx, button.x, button.y, button.w, button.h, 14);
+    ctx.fill();
+
+    ctx.fillStyle = PALETTE.onPrimary;
+    ctx.font = font(600, 16);
+    ctx.fillText('PLAY', button.x + button.w / 2, button.y + button.h / 2);
+
+    ctx.restore();
+
+    return {
+      x: originX + button.x * scale,
+      y: originY + button.y * scale,
+      w: button.w * scale,
+      h: button.h * scale,
+    };
+  }
+
+  /**
+   * Draws the pause overlay over the current frozen round.
+   *
+   * @returns {{resume: object, restart: object}} Button hit boxes.
+   */
+  drawPauseOverlay() {
+    const ctx = this.ctx;
+
+    ctx.fillStyle = 'rgba(49, 48, 45, 0.52)';
+    ctx.fillRect(0, 0, this.width, this.height);
+
+    const cardW = 300;
+    const cardH = 238;
+    const scale = Math.min(1, (this.width - 32) / cardW, (this.height - 32) / cardH);
+    const originX = (this.width - cardW * scale) / 2;
+    const originY = (this.height - cardH * scale) / 2;
+
+    ctx.save();
+    ctx.translate(originX, originY);
+    ctx.scale(scale, scale);
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(139, 94, 60, 0.35)';
+    ctx.shadowBlur = 34;
+    ctx.shadowOffsetY = 14;
+    ctx.fillStyle = PALETTE.surfaceBright;
+    pathRoundRect(ctx, 0, 0, cardW, cardH, 24);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    ctx.fillStyle = PALETTE.primary;
+    ctx.font = font(700, 30);
+    ctx.fillText('PAUSED', cardW / 2, 58);
+
+    const resume = { x: 36, y: 102, w: cardW - 72, h: 46 };
+    const restart = { x: 36, y: 162, w: cardW - 72, h: 46 };
+
+    this.drawModalButton(resume, 'RESUME', true);
+    this.drawModalButton(restart, 'RESTART', false);
+
+    ctx.restore();
+
+    return {
+      resume: {
+        x: originX + resume.x * scale,
+        y: originY + resume.y * scale,
+        w: resume.w * scale,
+        h: resume.h * scale,
+      },
+      restart: {
+        x: originX + restart.x * scale,
+        y: originY + restart.y * scale,
+        w: restart.w * scale,
+        h: restart.h * scale,
+      },
+    };
+  }
+
+  /**
+   * Draws a pause/start modal action button.
+   *
+   * @param {{x: number, y: number, w: number, h: number}} button Button bounds.
+   * @param {string} label Button label.
+   * @param {boolean} isPrimary Whether to use the primary filled style.
+   * @returns {void}
+   */
+  drawModalButton(button, label, isPrimary) {
+    const ctx = this.ctx;
+
+    if (isPrimary) {
+      ctx.fillStyle = PALETTE.onPrimaryFixedVariant;
+      pathRoundRect(ctx, button.x, button.y + 4, button.w, button.h, 14);
+      ctx.fill();
+
+      ctx.fillStyle = PALETTE.primary;
+      pathRoundRect(ctx, button.x, button.y, button.w, button.h, 14);
+      ctx.fill();
+
+      ctx.fillStyle = PALETTE.onPrimary;
+    } else {
+      ctx.fillStyle = PALETTE.surfaceContainerLow;
+      pathRoundRect(ctx, button.x, button.y, button.w, button.h, 14);
+      ctx.fill();
+
+      ctx.strokeStyle = PALETTE.outlineVariant;
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+
+      ctx.fillStyle = PALETTE.primary;
+    }
+
+    ctx.font = font(600, 15);
+    ctx.fillText(label, button.x + button.w / 2, button.y + button.h / 2);
+  }
+}

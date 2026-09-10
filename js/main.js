@@ -1,10 +1,21 @@
 import { CONFIG } from './config.js';
+import { AudioManager } from './audio.js';
 import { Dog, GameManager, Tool } from './game.js';
 import { Renderer } from './renderer.js';
 import { clamp, computeDirtRect, computeDogAnchor, computePlayArea, computeRugRect, computeToolDockLayout, hitTestToolDock, remapDirtToRug, shedDirtAround, spawnDirt } from './geometry.js';
 
 /** Semantic version of the game. Mirrors the "version" field in package.json. */
 export const GAME_VERSION = '0.3.0';
+
+export const APP_STATE = Object.freeze({
+  START: 'start',
+  PLAYING: 'playing',
+  PAUSED: 'paused',
+});
+
+function hitTestRect(rect, x, y) {
+  return !!rect && x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
+}
 
 // ------------------------------------------------------------
 // Game engine
@@ -21,6 +32,7 @@ export class RugRush {
   constructor(canvas) {
     this.canvas = canvas;
     this.renderer = new Renderer(canvas);
+    this.audio = new AudioManager();
 
     this.game = null;
     this.rugRect = null;
@@ -29,6 +41,10 @@ export class RugRush {
 
     this.currentTool = Tool.PRESETS.LINT_ROLLER();
     this.pointer = { x: 0, y: 0, isDown: false, isOnScreen: false };
+    this.appState = APP_STATE.START;
+    this.hudControls = null;
+    this.startButton = null;
+    this.pauseButtons = null;
     this.overlayButton = null;
 
     this.lastFrameMs = 0;
@@ -43,7 +59,7 @@ export class RugRush {
    */
   start() {
     this.handleResize();
-    this.reset();
+    this.reset(APP_STATE.START);
     this.bindEvents();
 
     this.isRunning = true;
@@ -56,7 +72,7 @@ export class RugRush {
    *
    * @returns {void}
    */
-  reset() {
+  reset(nextState = APP_STATE.PLAYING) {
   // Calculate the visual size and position of the rug.
   this.rugRect = computeRugRect(
     this.renderer.width,
@@ -95,8 +111,50 @@ export class RugRush {
   });
 
   this.elapsedSeconds = 0;
+  this.pointer.isDown = false;
+  this.appState = nextState;
+  this.startButton = null;
+  this.pauseButtons = null;
   this.overlayButton = null;
 }
+
+  /**
+   * Pauses a round in progress.
+   *
+   * @returns {void}
+   */
+  pause() {
+    if (this.appState !== APP_STATE.PLAYING) return;
+    if (this.game.result !== GameManager.RESULT.IN_PROGRESS) return;
+
+    this.pointer.isDown = false;
+    this.appState = APP_STATE.PAUSED;
+  }
+
+  /**
+   * Resumes a paused round.
+   *
+   * @returns {void}
+   */
+  resume() {
+    if (this.appState !== APP_STATE.PAUSED) return;
+
+    this.pointer.isDown = false;
+    this.appState = APP_STATE.PLAYING;
+  }
+
+  /**
+   * Toggles pause for keyboard input.
+   *
+   * @returns {void}
+   */
+  togglePause() {
+    if (this.appState === APP_STATE.PAUSED) {
+      this.resume();
+    } else {
+      this.pause();
+    }
+  }
 
   /**
    * Recomputes the canvas size, rug rectangle and dock layout, keeping any dirt
@@ -161,6 +219,8 @@ export class RugRush {
    * @returns {void}
    */
   update(deltaTime) {
+    if (this.appState !== APP_STATE.PLAYING) return;
+
     this.elapsedSeconds += deltaTime;
 
     if (this.game.result !== GameManager.RESULT.IN_PROGRESS) return;
@@ -191,9 +251,17 @@ export class RugRush {
     this.renderer.drawDirt(this.game.dirtPatches);
     this.renderer.drawDog(this.game.dog, this.rugRect, this.elapsedSeconds);
     this.renderer.drawCursor(this.pointer, this.currentTool);
-    this.renderer.drawTopBar(stats);
+    this.hudControls = this.renderer.drawTopBar(stats, this.audio.isMuted());
     this.renderer.drawToolDock(this.dock, this.currentTool);
     this.overlayButton = this.renderer.drawOverlay(stats);
+    this.startButton = null;
+    this.pauseButtons = null;
+
+    if (this.appState === APP_STATE.START) {
+      this.startButton = this.renderer.drawStartScreen();
+    } else if (this.appState === APP_STATE.PAUSED) {
+      this.pauseButtons = this.renderer.drawPauseOverlay();
+    }
   }
 
   /**
@@ -254,8 +322,39 @@ export class RugRush {
   handlePressStart(clientX, clientY) {
     this.updatePointer(clientX, clientY);
 
+    if (this.appState === APP_STATE.START) {
+      if (hitTestRect(this.startButton, this.pointer.x, this.pointer.y)) {
+        this.reset(APP_STATE.PLAYING);
+      }
+      return;
+    }
+
+    if (this.appState === APP_STATE.PAUSED) {
+      if (hitTestRect(this.pauseButtons?.resume, this.pointer.x, this.pointer.y)) {
+        this.resume();
+      } else if (hitTestRect(this.pauseButtons?.restart, this.pointer.x, this.pointer.y)) {
+        this.reset(APP_STATE.PLAYING);
+      }
+      return;
+    }
+
     if (this.game.result !== GameManager.RESULT.IN_PROGRESS) {
       this.reset();
+      return;
+    }
+
+    if (hitTestRect(this.hudControls?.pause, this.pointer.x, this.pointer.y)) {
+      this.pause();
+      return;
+    }
+
+    if (hitTestRect(this.hudControls?.restart, this.pointer.x, this.pointer.y)) {
+      this.reset(APP_STATE.PLAYING);
+      return;
+    }
+
+    if (hitTestRect(this.hudControls?.mute, this.pointer.x, this.pointer.y)) {
+      this.audio.toggleMuted();
       return;
     }
 
@@ -326,6 +425,7 @@ export class RugRush {
       if (event.key === '2') this.selectTool('BRUSH');
       if (event.key === '3') this.selectTool('VACUUM');
       if (event.key === 'r' || event.key === 'R') this.reset();
+      if (event.key === 'Escape') this.togglePause();
     });
 
     // --- Window ---

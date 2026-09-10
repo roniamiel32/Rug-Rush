@@ -28,7 +28,8 @@ const __dirname = path.dirname(__filename);
  * @returns {object} The game's classes and helper functions.
  */
 async function loadGame() {
-  const [config, game, geometry, main] = await Promise.all([
+  const [audio, config, game, geometry, main] = await Promise.all([
+    import('../js/audio.js'),
     import('../js/config.js'),
     import('../js/game.js'),
     import('../js/geometry.js'),
@@ -36,6 +37,7 @@ async function loadGame() {
   ]);
 
   return {
+    ...audio,
     ...config,
     ...game,
     ...geometry,
@@ -75,6 +77,25 @@ function test(name, fn) {
 function fakeRng(values) {
   let i = 0;
   return () => values[i++ % values.length];
+}
+
+/**
+ * Builds a minimal localStorage-compatible object for audio preference tests.
+ *
+ * @param {object} [initial] Initial key/value pairs.
+ * @returns {object} Storage-like object.
+ */
+function fakeStorage(initial = {}) {
+  const data = { ...initial };
+
+  return {
+    getItem(key) {
+      return Object.prototype.hasOwnProperty.call(data, key) ? data[key] : null;
+    },
+    setItem(key, value) {
+      data[key] = String(value);
+    },
+  };
 }
 
 /**
@@ -350,6 +371,40 @@ test('patches age while the round runs', () => {
 
   simulate(game, 1, 60);
   assert.ok(Math.abs(patch.age - 1) < 0.001);
+});
+
+// ---------------- AudioManager ----------------
+test('AudioManager starts unmuted without a stored preference', () => {
+  const audio = new G.AudioManager({ storage: fakeStorage() });
+  assert.strictEqual(audio.isMuted(), false);
+});
+
+test('AudioManager persists and restores the mute preference', () => {
+  const storage = fakeStorage();
+  const audio = new G.AudioManager({ storage });
+
+  audio.setMuted(true);
+
+  const restored = new G.AudioManager({ storage });
+  assert.strictEqual(restored.isMuted(), true);
+});
+
+test('AudioManager does not play registered sounds while muted', () => {
+  const audio = new G.AudioManager({ storage: fakeStorage() });
+  let plays = 0;
+
+  audio.register('clean', {
+    currentTime: 3,
+    play() {
+      plays += 1;
+    },
+    pause() {},
+  });
+
+  audio.setMuted(true);
+
+  assert.strictEqual(audio.play('clean'), false);
+  assert.strictEqual(plays, 0);
 });
 
 // ---------------- Layout helpers ----------------
